@@ -1,3 +1,5 @@
+#![feature(binary_heap_into_iter_sorted)]
+use std::collections::BinaryHeap;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader, Lines};
 use std::path::Path;
@@ -10,34 +12,9 @@ where
     Ok(BufReader::new(file).lines())
 }
 
-/* old
-fn split_carry_lists(lines: Lines<BufReader<File>>) -> Vec<Vec<u32>> {
-    let mut lists = vec![];
-    let mut cur_list: Option<Vec<u32>> = None;
-
-    for line in lines {
-        if let Ok(ln) = line {
-            if let Ok(num) = ln.parse::<u32>() {
-                if let Some(ref mut list) = cur_list {
-                    list.push(num);
-                } else {
-                    cur_list = Some(vec![num]);
-                }
-            } else {
-                if let Some(list) = cur_list {
-                    lists.push(list);
-                }
-                cur_list = None;
-            }
-        }
-    }
-    lists
-}
-*/
-
-fn split_carry_lists(lines: Lines<BufReader<File>>) -> Vec<Vec<u32>> {
+fn split_carry_lists(lines: impl Iterator<Item = String>) -> Vec<Vec<u32>> {
     lines
-        .map(|ln| ln.map_or(None, |s| s.parse::<u32>().ok()))
+        .map(|ln| ln.parse::<u32>().ok())
         .collect::<Vec<_>>()
         .split(|x| x.is_none())
         .map(|list| {
@@ -48,13 +25,25 @@ fn split_carry_lists(lines: Lines<BufReader<File>>) -> Vec<Vec<u32>> {
         .collect::<Vec<_>>()
 }
 
-fn get_max_carry(lists: &[Vec<u32>]) -> u32 {
-    lists.iter().map(|list| list.iter().sum()).max().unwrap()
+fn get_calorie_list(lists: &[Vec<u32>]) -> Vec<u32> {
+    lists.iter().map(|list| list.iter().sum()).collect()
+}
+
+fn get_sum_of_top(top: usize, calorie_list: &[u32]) -> u32 {
+    BinaryHeap::from_iter(calorie_list)
+        .into_iter_sorted()
+        .take(top)
+        .sum()
 }
 
 fn main() {
-    let lines = read_lines("./input/data").unwrap();
-    let lists = split_carry_lists(lines);
-    let max_carry = get_max_carry(&lists);
-    println!("{max_carry}");
+    let lines = read_lines("./input/data").unwrap().filter_map(|ln| ln.ok());
+    let carry_lists = split_carry_lists(lines);
+    let calorie_list = get_calorie_list(&carry_lists);
+
+    let max_carry = get_sum_of_top(1, &calorie_list);
+    println!("part 1 - max carry: {max_carry}");
+
+    let sum_top_3 = get_sum_of_top(3, &calorie_list);
+    println!("part 2 - sum of top 3: {sum_top_3}");
 }
