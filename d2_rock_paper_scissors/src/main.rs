@@ -13,20 +13,6 @@ fn get_shape_score(shape: Shape) -> u32 {
     shape as u32
 }
 
-fn get_compare_score(opponent: Shape, mine: Shape) -> u32 {
-    let m = get_shape_score(mine);
-    let o = get_shape_score(opponent);
-
-    if m == o {
-        return 3;
-    }
-    if (m + 3 - o) % 3 == 1 {
-        6
-    } else {
-        0
-    }
-}
-
 fn get_shape(s: &str) -> Option<Shape> {
     match s {
         "A" | "X" => Some(Shape::Rock),
@@ -36,14 +22,68 @@ fn get_shape(s: &str) -> Option<Shape> {
     }
 }
 
-fn get_line_score(ln: &str) -> u32 {
+#[derive(Clone, Copy, Debug)]
+enum RoundResult {
+    Lost = 0,
+    Draw = 3,
+    Won = 6,
+}
+
+fn get_result_score(result: RoundResult) -> u32 {
+    result as u32
+}
+
+fn get_result(s: &str) -> Option<RoundResult> {
+    match s {
+        "X" => Some(RoundResult::Lost),
+        "Y" => Some(RoundResult::Draw),
+        "Z" => Some(RoundResult::Won),
+        _ => None,
+    }
+}
+
+fn get_round_result(opponent: Shape, mine: Shape) -> RoundResult {
+    match (opponent, mine) {
+        (Shape::Rock, Shape::Paper) => RoundResult::Won,
+        (Shape::Rock, Shape::Scissors) => RoundResult::Lost,
+        (Shape::Paper, Shape::Rock) => RoundResult::Lost,
+        (Shape::Paper, Shape::Scissors) => RoundResult::Won,
+        (Shape::Scissors, Shape::Rock) => RoundResult::Won,
+        (Shape::Scissors, Shape::Paper) => RoundResult::Lost,
+        _ => RoundResult::Draw,
+    }
+}
+
+fn get_round_score(opponent: Shape, mine: Shape) -> u32 {
+    let result = get_round_result(opponent, mine);
+    get_result_score(result)
+}
+
+fn get_line_score_p1(ln: &str) -> u32 {
     let shapes = ln.split(' ').collect::<Vec<_>>();
     let opponent = get_shape(shapes[0]).unwrap();
     let mine = get_shape(shapes[1]).unwrap();
-    // let s = get_shape_score(m);
-    // let c = get_compare_score(o, m);
-    // println!("{:?} vs {:?} shape: {s} + won: {c}", o, m);
-    get_shape_score(mine) + get_compare_score(opponent, mine)
+    get_shape_score(mine) + get_round_score(opponent, mine)
+}
+
+fn get_shape_from_result(opponent: Shape, result: RoundResult) -> Shape {
+    match (result, opponent) {
+        (RoundResult::Draw, mine) => mine,
+        (RoundResult::Lost, Shape::Rock) => Shape::Scissors,
+        (RoundResult::Lost, Shape::Paper) => Shape::Rock,
+        (RoundResult::Lost, Shape::Scissors) => Shape::Paper,
+        (RoundResult::Won, Shape::Rock) => Shape::Paper,
+        (RoundResult::Won, Shape::Paper) => Shape::Scissors,
+        (RoundResult::Won, Shape::Scissors) => Shape::Rock,
+    }
+}
+
+fn get_line_score_p2(ln: &str) -> u32 {
+    let shapes = ln.split(' ').collect::<Vec<_>>();
+    let opponent = get_shape(shapes[0]).unwrap();
+    let result = get_result(shapes[1]).unwrap();
+    let mine = get_shape_from_result(opponent, result);
+    get_shape_score(mine) + get_result_score(result)
 }
 
 fn read_lines<P>(filename: P) -> io::Result<Lines<BufReader<File>>>
@@ -55,7 +95,14 @@ where
 }
 
 fn main() {
-    let lines = read_lines("./input/data").unwrap().filter_map(|ln| ln.ok());
-    let total_score: u32 = lines.map(|ln| get_line_score(&ln)).sum();
-    print!("total score: {total_score}");
+    let lines = read_lines("./input/data")
+        .unwrap()
+        .filter_map(|ln| ln.ok())
+        .collect::<Vec<_>>();
+
+    let total_score_p1: u32 = lines.iter().map(|ln| get_line_score_p1(ln)).sum();
+    println!("total p1 score: {total_score_p1}");
+
+    let total_score_p2: u32 = lines.iter().map(|ln| get_line_score_p2(ln)).sum();
+    println!("total p2 score: {total_score_p2}");
 }
